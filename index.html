@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LeetCode 424 Visualizer</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function LeetCode424Visualizer() {
+      const [s, setS] = useState("AABABBA");
+      const [k, setK] = useState(1);
+      const [left, setLeft] = useState(0);
+      const [right, setRight] = useState(-1);
+      const [counts, setCounts] = useState({});
+      const [maxCount, setMaxCount] = useState(0);
+      const [maxLen, setMaxLen] = useState(0);
+      const [bestRange, setBestRange] = useState([0,0]);
+      const [playing, setPlaying] = useState(false);
+      const timerRef = useRef(null);
+
+      function resetSimulation() {
+        setLeft(0);
+        setRight(-1);
+        setCounts({});
+        setMaxCount(0);
+        setMaxLen(0);
+        setBestRange([0,0]);
+        setPlaying(false);
+        if(timerRef.current) clearInterval(timerRef.current);
+      }
+
+      function stepForward() {
+        if (right >= s.length - 1) return;
+        const r = right + 1;
+        const ch = s[r];
+        const newCounts = {...counts};
+        newCounts[ch] = (newCounts[ch] || 0) + 1;
+        const newMost = Math.max(...Object.values(newCounts));
+        let L = left;
+        if(r - L + 1 - newMost > k){
+          newCounts[s[L]] -= 1;
+          L += 1;
+        }
+        const newWindowLen = r - L + 1;
+        if(newWindowLen > maxLen){
+          setMaxLen(newWindowLen);
+          setBestRange([L, r]);
+        }
+        setLeft(L);
+        setRight(r);
+        setCounts(newCounts);
+        setMaxCount(newMost);
+      }
+
+      function stepBack() { /* optional: implement later */ }
+
+      useEffect(() => {
+        if(playing){
+          timerRef.current = setInterval(() => {
+            if(right >= s.length -1){
+              setPlaying(false);
+              clearInterval(timerRef.current);
+              return;
+            }
+            stepForward();
+          }, 550);
+        } else {
+          if(timerRef.current) clearInterval(timerRef.current);
+        }
+        return () => { if(timerRef.current) clearInterval(timerRef.current); }
+      }, [playing, right]);
+
+      function getCharColor(idx){
+        if(idx < left || idx > right) return 'bg-white';
+        const ch = s[idx];
+        if(counts[ch] === maxCount) return 'bg-green-300';
+        return 'bg-yellow-300';
+      }
+
+      return (
+        <div className="max-w-4xl mx-auto p-4">
+          <h1 className="text-2xl font-semibold mb-3 text-blue-200">LeetCode 424 Visualizer</h1>
+          <div className="flex gap-3 mb-3 items-center">
+            <label className="flex-1">
+              Input string
+              <input className="w-full mt-1 p-2 border rounded" value={s} onChange={e=>setS(e.target.value.toUpperCase())}/>
+            </label>
+            <label>
+              k
+              <input type="number" className="ml-2 p-2 w-20 border rounded" value={k} onChange={e=>setK(parseInt(e.target.value||'0',10))}/>
+            </label>
+            <button className="ml-2 px-3 py-2 bg-blue-200 text-black rounded" onClick={resetSimulation}>Reset</button>
+          </div>
+
+          <div className="flex flex-wrap mb-1">
+            {Array.from(s).map((_, idx)=>(
+              <div key={idx} className="m-1 w-9 h-6 flex items-center justify-center text-xs font-mono">
+                {idx===left?'i':idx===right?'j':''}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap mb-3">
+            {Array.from(s).map((ch, idx)=>{
+              const borderClass = idx===left?'border-blue-700':idx===right?'border-orange-500':'border-gray-300';
+              const bgClass = getCharColor(idx);
+              return <div key={idx} className={`m-1 w-9 h-12 flex items-center justify-center rounded text-lg font-mono border-2 ${borderClass} ${bgClass}`}><span>{ch}</span></div>
+            })}
+          </div>
+
+          <div className="flex gap-4 items-center mb-3">
+            <button className="px-3 py-2 border rounded" onClick={stepBack}>◀ Step Back</button>
+            <button className="px-4 py-2 border rounded" onClick={()=>setPlaying(p=>!p)}>{playing?'Pause':'Play'}</button>
+            <button className="px-3 py-2 border rounded" onClick={stepForward}>Step ▶</button>
+          </div>
+
+          <div className="mb-3 p-3 border rounded">
+            <h2 className="font-medium mb-1">Variables State</h2>
+            <div>Left pointer (i): {left}</div>
+            <div>Right pointer (j): {right}</div>
+            <div>Current window length: {Math.max(0,right-left+1)}</div>
+            <div>Most frequent char count (maxCount): {maxCount}</div>
+            <div>Max substring length found (maxLen): {maxLen}</div>
+            <div>Frequency counts: {JSON.stringify(counts)}</div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<LeetCode424Visualizer />);
+  </script>
+</body>
+</html>
