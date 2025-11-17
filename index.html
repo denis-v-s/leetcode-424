@@ -24,7 +24,10 @@
       const [maxLen, setMaxLen] = useState(0);
       const [bestRange, setBestRange] = useState([0,0]);
       const [playing, setPlaying] = useState(false);
+
       const timerRef = useRef(null);
+      const [history, setHistory] = useState([]);
+      const [historyIndex, setHistoryIndex] = useState(-1);
 
       function resetSimulation() {
         setLeft(0);
@@ -34,37 +37,66 @@
         setMaxLen(0);
         setBestRange([0,0]);
         setPlaying(false);
+        setHistory([]);
+        setHistoryIndex(-1);
         if(timerRef.current) clearInterval(timerRef.current);
       }
 
+      function pushSnapshot(state) {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(state);
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+      }
+
       function stepForward() {
-        if (right >= s.length - 1) return;
+        if(right >= s.length - 1) return;
+
         const r = right + 1;
         const ch = s[r];
-        const newCounts = {...counts};
-        newCounts[ch] = (newCounts[ch] || 0) + 1;
+        const newCounts = {...counts, [ch]: (counts[ch] || 0) + 1};
         const newMost = Math.max(...Object.values(newCounts));
         let L = left;
         if(r - L + 1 - newMost > k){
           newCounts[s[L]] -= 1;
           L += 1;
         }
+
         const newWindowLen = r - L + 1;
+        let newMaxLen = maxLen;
+        let newBestRange = bestRange;
         if(newWindowLen > maxLen){
-          setMaxLen(newWindowLen);
-          setBestRange([L, r]);
+          newMaxLen = newWindowLen;
+          newBestRange = [L, r];
         }
+
+        const snapshot = { left: L, right: r, counts: newCounts, maxCount: newMost, maxLen: newMaxLen, bestRange: newBestRange };
+        pushSnapshot(snapshot);
+
         setLeft(L);
         setRight(r);
         setCounts(newCounts);
         setMaxCount(newMost);
+        setMaxLen(newMaxLen);
+        setBestRange(newBestRange);
       }
 
-      function stepBack() { /* optional: implement later */ }
+      function stepBack() {
+        if(historyIndex <= 0) return;
+        const prevIndex = historyIndex - 1;
+        const snap = history[prevIndex];
+        setLeft(snap.left);
+        setRight(snap.right);
+        setCounts(snap.counts);
+        setMaxCount(snap.maxCount);
+        setMaxLen(snap.maxLen);
+        setBestRange(snap.bestRange);
+        setHistoryIndex(prevIndex);
+      }
 
-      useEffect(() => {
+      useEffect(()=>{
         if(playing){
-          timerRef.current = setInterval(() => {
+          timerRef.current = setInterval(()=>{
             if(right >= s.length -1){
               setPlaying(false);
               clearInterval(timerRef.current);
@@ -75,7 +107,7 @@
         } else {
           if(timerRef.current) clearInterval(timerRef.current);
         }
-        return () => { if(timerRef.current) clearInterval(timerRef.current); }
+        return ()=>{ if(timerRef.current) clearInterval(timerRef.current); }
       }, [playing, right]);
 
       function getCharColor(idx){
@@ -88,6 +120,7 @@
       return (
         <div className="max-w-4xl mx-auto p-4">
           <h1 className="text-2xl font-semibold mb-3 text-blue-200">LeetCode 424 Visualizer</h1>
+
           <div className="flex gap-3 mb-3 items-center">
             <label className="flex-1">
               Input string
@@ -100,6 +133,7 @@
             <button className="ml-2 px-3 py-2 bg-blue-200 text-black rounded" onClick={resetSimulation}>Reset</button>
           </div>
 
+          {/* i/j indicators */}
           <div className="flex flex-wrap mb-1">
             {Array.from(s).map((_, idx)=>(
               <div key={idx} className="m-1 w-9 h-6 flex items-center justify-center text-xs font-mono">
@@ -108,6 +142,7 @@
             ))}
           </div>
 
+          {/* character boxes */}
           <div className="flex flex-wrap mb-3">
             {Array.from(s).map((ch, idx)=>{
               const borderClass = idx===left?'border-blue-700':idx===right?'border-orange-500':'border-gray-300';
@@ -116,12 +151,14 @@
             })}
           </div>
 
+          {/* controls */}
           <div className="flex gap-4 items-center mb-3">
             <button className="px-3 py-2 border rounded" onClick={stepBack}>◀ Step Back</button>
             <button className="px-4 py-2 border rounded" onClick={()=>setPlaying(p=>!p)}>{playing?'Pause':'Play'}</button>
             <button className="px-3 py-2 border rounded" onClick={stepForward}>Step ▶</button>
           </div>
 
+          {/* variables display */}
           <div className="mb-3 p-3 border rounded">
             <h2 className="font-medium mb-1">Variables State</h2>
             <div>Left pointer (i): {left}</div>
